@@ -70,3 +70,53 @@ class QLearner(object):
             print ("s =", s,"a =",action)
         return action
 
+    def query(self, s_prime, r):
+        """Find the next action to take in state s_prime. Update the latest state 
+        and action and the Q table. Update rule:
+        Q'[s, a] = (1 - α) · Q[s, a] + α · (r + γ · Q[s', argmax a'(Q[s', a'])]).
+
+        Parameters:
+        s_prime: int, the new state
+        r: float, a real valued immediate reward for taking the previous action
+        
+        Returns: The selected action to take in s_prime
+        """
+        # Update the Q value of the latest state and action based on s_prime and r
+        self.Q[self.s, self.a] = (1 - self.alpha) * self.Q[self.s, self.a] \
+                                    + self.alpha * (r + self.gamma 
+                                    * self.Q[s_prime, self.Q[s_prime, :].argmax()])
+
+        # Implement Dyna-Q
+        if self.dyna > 0:
+            # Update the reward table
+            self.R[self.s, self.a] = (1 - self.alpha) * self.R[self.s, self.a] \
+                                        + self.alpha * r
+            
+            if (self.s, self.a) in self.T:
+                if s_prime in self.T[(self.s, self.a)]:
+                    self.T[(self.s, self.a)][s_prime] += 1
+                else:
+                    self.T[(self.s, self.a)][s_prime] = 1
+            else:
+                self.T[(self.s, self.a)] = {s_prime: 1}
+            
+            Q = deepcopy(self.Q)
+            for i in range(self.dyna):
+                s = rand.randint(0, self.num_states - 1)
+                a = rand.randint(0, self.num_actions - 1)
+                if (s, a) in self.T:
+                    # Find the most common s_prime as a result of taking a in s
+                    s_pr = max(self.T[(s, a)], key=lambda k: self.T[(s, a)][k])
+                    # Update the temporary Q table
+                    Q[s, a] = (1 - self.alpha) * Q[s, a] \
+                                + self.alpha * (self.R[s, a] + self.gamma 
+                                * Q[s_pr, Q[s_pr, :].argmax()])
+            # Update the Q table of the learner once Dyna-Q is complete
+            self.Q = deepcopy(Q)
+        
+        # Find the next action to take and update the latest state and action
+        a_prime = self.query_set_state(s_prime)
+        self.rar *= self.radr
+        if self.verbose: 
+            print ("s =", s_prime,"a =",a_prime,"r =",r)
+        return a_prime
